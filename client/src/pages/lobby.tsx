@@ -3,28 +3,64 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { PlayerList } from "@/components/lobby/PlayerList";
 import { EmailSignup } from "@/components/lobby/EmailSignup";
-import { subscribeToOnlineUsers, addToWaitingList, logoutUser } from "@/lib/firebase";
+import { subscribeToOnlineUsers, addToWaitingList, logoutUser, subscribeToMatches } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import type { User } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Lobby() {
   const [_, setLocation] = useLocation();
   const [onlinePlayers, setOnlinePlayers] = useState<User[]>([]);
   const [isWaiting, setIsWaiting] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = subscribeToOnlineUsers((users) => {
+    const unsubscribeUsers = subscribeToOnlineUsers((users) => {
       setOnlinePlayers(Object.values(users || {}));
     });
 
-    return () => unsubscribe();
+    // Set up match subscription
+    const unsubscribeMatches = auth.currentUser 
+      ? subscribeToMatches(auth.currentUser.uid, (gameId) => {
+          toast({
+            title: "Match Found!",
+            description: "Starting game...",
+          });
+          setIsWaiting(false);
+          setLocation(`/game/${gameId}`);
+        })
+      : undefined;
+
+    return () => {
+      unsubscribeUsers();
+      if (unsubscribeMatches) unsubscribeMatches();
+    };
   }, []);
 
   const handlePlayGame = async () => {
+    if (!auth.currentUser) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to play",
+      });
+      return;
+    }
+
     setIsWaiting(true);
     try {
-      await addToWaitingList("currentUserId"); // Replace with actual user ID
+      await addToWaitingList(auth.currentUser.uid);
+      toast({
+        title: "Looking for match",
+        description: "Please wait while we find another player...",
+      });
     } catch (error) {
       setIsWaiting(false);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to join waiting list. Please try again.",
+      });
     }
   };
 

@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { getDatabase, ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
+import { getDatabase, ref, onValue, set, update, onDisconnect, serverTimestamp, get } from "firebase/database";
+import { nanoid } from 'nanoid';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -88,14 +89,66 @@ export const subscribeToOnlineUsers = (callback: (users: any) => void) => {
   });
 };
 
-export const addToWaitingList = (userId: string) => {
-  const waitingRef = ref(db, `waiting/${userId}`);
-  return set(waitingRef, {
-    joinedAt: serverTimestamp()
-  });
-};
-
 export const updateGameState = (gameId: string, gameState: any) => {
   const gameRef = ref(db, `games/${gameId}`);
   return update(gameRef, gameState);
+};
+
+
+export const subscribeToMatches = (userId: string, onMatch: (gameId: string) => void) => {
+  const matchRef = ref(db, `matches/${userId}`);
+  return onValue(matchRef, (snapshot) => {
+    const match = snapshot.val();
+    if (match && match.gameId) {
+      onMatch(match.gameId);
+      // Clean up the match after handling it
+      set(matchRef, null);
+    }
+  });
+};
+
+export const findMatch = async (userId: string) => {
+  const waitingRef = ref(db, 'waiting');
+  const snapshot = await get(waitingRef);
+  const waitingPlayers = snapshot.val() || {};
+
+  // Filter out our own user ID and find the earliest waiting player
+  const availablePlayers = Object.entries(waitingPlayers)
+    .filter(([id]) => id !== userId)
+    .sort(([, a]: any, [, b]: any) => a.joinedAt - b.joinedAt);
+
+  if (availablePlayers.length > 0) {
+    const [matchedPlayerId] = availablePlayers[0];
+
+    // Create a new game
+    const gameRef = ref(db, `games/${nanoid()}`);
+    const gameData = {
+      player1: { id: userId, score: 0 },
+      player2: { id: matchedPlayerId, score: 0 },
+      currentRound: 1,
+      status: 'active'
+    };
+
+    // Update all references atomically
+    const updates: any = {
+      [`games/${gameRef.key}`]: gameData,
+      [`matches/${userId}`]: { gameId: gameRef.key },
+      [`matches/${matchedPlayerId}`]: { gameId: gameRef.key },
+      [`waiting/${userId}`]: null,
+      [`waiting/${matchedPlayerId}`]: null
+    };
+
+    await update(ref(db), updates);
+  } else {
+    // If no match found, add/update our waiting status
+    const waitingPlayerRef = ref(db, `waiting/${userId}`);
+    await set(waitingPlayerRef, {
+      joinedAt: serverTimestamp()
+    });
+  }
+};
+
+// Update addToWaitingList function
+export const addToWaitingList = async (userId: string) => {
+  await findMatch(userId);
 };
