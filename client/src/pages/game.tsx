@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { GameCard } from "@/components/game/GameCard";
 import { ScoreBoard } from "@/components/game/ScoreBoard";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,13 @@ import { subscribeToGame, makeMove, type Move, type GameState } from "@/lib/game
 import { auth } from "@/lib/firebase";
 
 export default function Game() {
-  const [location, setLocation] = useLocation();
+  const [_, setLocation] = useLocation();
+  const params = useParams<{ id: string }>();
   const { toast } = useToast();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [selectedMove, setSelectedMove] = useState<Move | null>(null);
 
-  // Extract game ID from URL
-  const gameId = location.split('/').pop();
+  const gameId = params.id;
 
   useEffect(() => {
     if (!gameId || !auth.currentUser) {
