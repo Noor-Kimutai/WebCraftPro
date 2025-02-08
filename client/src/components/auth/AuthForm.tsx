@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { loginUser, registerUser, setUserOnlineStatus } from "@/lib/firebase";
+import { apiRequest } from "@/lib/queryClient";
 
 const authSchema = z.object({
   email: z.string().email(),
@@ -39,12 +40,22 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       // Set user as online in Firebase
       await setUserOnlineStatus(userCredential.user.uid, true);
 
+      // Create or update user in PostgreSQL database
+      await apiRequest("POST", "/api/users", {
+        email: values.email,
+        displayName: values.email.split('@')[0], // Use email prefix as display name
+        isOnline: true
+      });
+
       // Set up presence detection
-      const handleUnload = () => {
-        setUserOnlineStatus(userCredential.user.uid, false);
+      const handleUnload = async () => {
+        await setUserOnlineStatus(userCredential.user.uid, false);
+        await apiRequest("POST", "/api/users/status", {
+          email: values.email,
+          isOnline: false
+        });
       };
 
-      // Add presence event listeners
       window.addEventListener('beforeunload', handleUnload);
       window.addEventListener('unload', handleUnload);
 
