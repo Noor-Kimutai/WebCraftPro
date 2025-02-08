@@ -1,0 +1,61 @@
+I would like you to help me create a full stack web app using Tailwindcss, Next.js, JavaScript, Firebase, and Netlify. The app will be an online multiplayer Rock Paper Scissors game with the following features and requirements:
+
+**Features & Functionality:**
+- **User Authentication:**
+  - Users can sign up and log in using email and password.
+  - Authentication is managed using Firebase Authentication.
+- **Lobby Page:**
+  - Once logged in, the user is taken to a lobby page.
+  - The lobby shows:
+    - A list of online users (updated in realtime).
+    - A button to “Play Game” which puts the user into a waiting list.
+    - A game tally showing the number of games played.
+    - An email signup form for notifications about upcoming cash reward games.
+    - A “Log Out” option that logs the user out and marks them as offline.
+  - If the user is inactive for more than 2 hours, they are automatically logged out.
+- **Matchmaking:**
+  - When the user clicks “Play Game,” they are added to a realtime waiting list in Firebase.
+  - A backend process (using Firebase Cloud Functions or client-side logic) matches users randomly.
+  - When a match is found, a popup appears allowing the user to accept or reject the match.
+  - On acceptance, both users are taken to the game page; on rejection, both return to the waiting list.
+- **Game Page:**
+  - The game is a three-round Rock Paper Scissors match.
+  - Each round, players select their move by clicking on cards showing images for rock, paper, and scissors.
+  - The game state is updated in realtime and shows:
+    - The current round, each player’s score, and whose turn it is.
+    - After three rounds, if scores are tied, tie-breaker rounds occur until a round is won.
+    - Display the user name of the winner.
+  - Once the game ends, the game tally is incremented and both players are navigated back to the lobby.
+
+**Technical Requirements:**
+- **Frontend:**
+  - Built with React.
+  - Uses React Router for navigation between Home, Lobby, and Game pages.
+- **Backend:**
+  - Uses Firebase for:
+    - Authentication (email/password).
+    - Realtime Database to store user status, waiting list, match info, game state, game tally, and email notifications.
+    - (Optional) Firebase Cloud Functions to handle matchmaking logic.
+- **Deployment:**
+  - The React frontend is deployed on Netlify.
+  - Sensitive information (API keys, etc.) is stored in a `.env` file.
+  
+  **Additional Instructions:**
+- **Dependencies:**
+  List and install the following dependencies:
+  - `react`, `react-dom`, `react-router-dom`
+  - `firebase`
+- **Setup Firebase:**
+  - Create a Firebase project.
+  - Enable Email/Password authentication.
+  - Create a Realtime Database and configure security rules.
+  - Update the `.env` file with your Firebase configuration.
+- **Setup Netlify:**
+  - Create a `netlify.toml` file specifying the build command (`npm run build`) and publish directory (`build`).
+  - Connect your Git repository to Netlify and configure environment variables.
+- **Inline Comments:**
+  Add inline comments in the code to indicate where placeholder values must be replaced (e.g., Firebase API keys).
+- **Detailed Code Comments:**
+  **For every line of code produced, include a comment next to it explaining what that line does.** This is to ensure clarity and help in understanding the implementation.
+
+Please generate the complete updated code base based on the above prompt, ensuring that the game logic is handled on the server side (using Firebase Realtime Database), that realtime updates are implemented, that the application is scalable to many concurrent users, and that every line of code has an accompanying comment explaining its function.
