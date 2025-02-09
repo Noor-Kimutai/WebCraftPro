@@ -25,15 +25,15 @@ export type GameState = {
 };
 
 export const determineWinner = (move1: Move, move2: Move): number => {
-  if (move1 === move2) return 0;
-  if (
-    (move1 === "rock" && move2 === "scissors") ||
-    (move1 === "paper" && move2 === "rock") ||
-    (move1 === "scissors" && move2 === "paper")
-  ) {
-    return 1;
-  }
-  return 2;
+  if (move1 === move2) return 0; // Tie
+
+  const rules = {
+    rock: "scissors",
+    paper: "rock",
+    scissors: "paper"
+  };
+
+  return rules[move1] === move2 ? 1 : 2;
 };
 
 export const subscribeToGame = (gameId: string, callback: (state: GameState) => void) => {
