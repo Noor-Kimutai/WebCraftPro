@@ -15,6 +15,8 @@ export type GameState = {
     move?: Move;
   };
   winner?: string;
+  roundComplete?: boolean;
+  roundInProgress?: boolean;
 };
 
 export const determineWinner = (move1: Move, move2: Move): number => {
@@ -32,7 +34,9 @@ export const determineWinner = (move1: Move, move2: Move): number => {
 export const subscribeToGame = (gameId: string, callback: (state: GameState) => void) => {
   const gameRef = ref(db, `games/${gameId}`);
   onValue(gameRef, (snapshot) => {
-    callback(snapshot.val() as GameState);
+    const gameState = snapshot.val() as GameState;
+    console.log("Game state updated:", gameState);
+    callback(gameState);
   });
 
   return () => {
@@ -52,13 +56,29 @@ export const makeMove = async (gameId: string, playerId: string, move: Move) => 
   const playerKey = isPlayer1 ? "player1" : "player2";
   const opponentKey = isPlayer1 ? "player2" : "player1";
 
+  // Prevent moves during round transition
+  if (game.roundInProgress) {
+    throw new Error("Round is in progress");
+  }
+
+  // Start new round if needed
+  if (!game.roundInProgress && !game[playerKey].move) {
+    await update(gameRef, {
+      roundInProgress: true,
+      roundComplete: false,
+      [`${playerKey}/move`]: null,
+      [`${opponentKey}/move`]: null
+    });
+  }
+
   // Update the player's move
   const updates: any = {
     [`${playerKey}/move`]: move
   };
 
-  // If both players have moved, determine the winner
+  // Check if opponent has moved
   if (game[opponentKey].move) {
+    console.log("Both players have moved, determining winner");
     const winner = determineWinner(
       isPlayer1 ? move : game[opponentKey].move!,
       isPlayer1 ? game[opponentKey].move! : move
@@ -70,9 +90,9 @@ export const makeMove = async (gameId: string, playerId: string, move: Move) => 
       updates[`${opponentKey}/score`] = game[opponentKey].score + 1;
     }
 
-    // Clear moves for next round
-    updates[`${playerKey}/move`] = null;
-    updates[`${opponentKey}/move`] = null;
+    // Mark round as complete
+    updates.roundComplete = true;
+    updates.roundInProgress = false;
     updates.currentRound = game.currentRound + 1;
 
     // Check if game is over (someone reached 3 points)
@@ -81,8 +101,20 @@ export const makeMove = async (gameId: string, playerId: string, move: Move) => 
     } else if (game[opponentKey].score + (winner === 2 ? 1 : 0) >= 3) {
       updates.winner = game[opponentKey].id;
     }
+
+    // Auto-reset round state after delay
+    setTimeout(async () => {
+      console.log("Auto-resetting round state");
+      await update(gameRef, {
+        [`${playerKey}/move`]: null,
+        [`${opponentKey}/move`]: null,
+        roundComplete: false,
+        roundInProgress: false
+      });
+    }, 2000);
   }
 
   // Update the game state
+  console.log("Updating game state with:", updates);
   await update(gameRef, updates);
 };

@@ -23,12 +23,22 @@ export default function Game() {
     }
 
     const unsubscribe = subscribeToGame(gameId, (state) => {
+      console.log("Received game state:", state);
       setGameState(state);
+
+      // Reset selected move when round is complete
+      if (state.roundComplete) {
+        setSelectedMove(null);
+        toast({
+          title: "Round Complete!",
+          description: "Get ready for the next round...",
+        });
+      }
 
       if (state.winner) {
         toast({
           title: `Game Over!`,
-          description: `Player ${state.winner} wins!`,
+          description: `${state.winner === auth.currentUser?.uid ? 'You win!' : 'Opponent wins!'}`,
         });
         setTimeout(() => setLocation("/lobby"), 3000);
       }
@@ -43,11 +53,11 @@ export default function Game() {
     setSelectedMove(move);
     try {
       await makeMove(gameId, auth.currentUser.uid, move);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to make move. Please try again.",
+        description: error.message || "Failed to make move. Please try again.",
       });
       setSelectedMove(null);
     }
@@ -66,6 +76,9 @@ export default function Game() {
   const currentPlayer = isPlayer1 ? gameState.player1 : gameState.player2;
   const opponent = isPlayer1 ? gameState.player2 : gameState.player1;
 
+  // Check if it's a new round and moves need to be reset
+  const canMove = !currentPlayer.move && !gameState.roundInProgress;
+
   return (
     <div className="min-h-screen p-8 space-y-8">
       <ScoreBoard
@@ -82,11 +95,17 @@ export default function Game() {
             key={move}
             move={move}
             selected={selectedMove === move}
-            disabled={!!selectedMove || !!currentPlayer.move}
+            disabled={!canMove}
             onSelect={handleMove}
           />
         ))}
       </div>
+
+      {gameState.roundComplete && (
+        <div className="text-center text-lg font-medium">
+          Round complete! Get ready for the next round...
+        </div>
+      )}
 
       <div className="text-center">
         <Button
