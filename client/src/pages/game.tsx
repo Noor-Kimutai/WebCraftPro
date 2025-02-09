@@ -28,18 +28,26 @@ export default function Game() {
       // Reset selected move when round is complete
       if (state.roundComplete) {
         setSelectedMove(null);
+
+        const message = state.regularRoundsComplete && state.isTieBreaker
+          ? "Tie breaker round! First to win takes the game!"
+          : "Round complete! Get ready for the next round...";
+
         toast({
           title: "Round Complete!",
-          description: "Get ready for the next round...",
+          description: message,
         });
       }
 
       // Handle game completion
-      if (state.status === 'complete') {
-        const isWinner = state.winner === auth.currentUser?.uid;
+      if (state.status === 'complete' && state.winner) {
+        const winnerName = state.winner === state.player1.id 
+          ? state.player1.displayName 
+          : state.player2.displayName;
+
         toast({
           title: "Game Over!",
-          description: isWinner ? "Congratulations! You won!" : "Better luck next time!",
+          description: `${winnerName} wins the game!`,
           duration: 5000,
         });
         setTimeout(() => setLocation("/lobby"), 5000);
@@ -91,22 +99,23 @@ export default function Game() {
         player1Score={gameState.player1.score}
         player2Score={gameState.player2.score}
         currentRound={gameState.currentRound}
-        player1Name={`Player ${isPlayer1 ? '(You)' : ''}`}
-        player2Name={`Opponent ${!isPlayer1 ? '(You)' : ''}`}
+        player1Name={gameState.player1.displayName}
+        player2Name={gameState.player2.displayName}
+        isTieBreaker={gameState.isTieBreaker}
       />
 
       <div className="text-center mb-4">
         {gameState.status === 'complete' ? (
           <div className="text-lg font-medium text-primary">
-            Game Over! Returning to lobby...
+            Game Over! {gameState.winner === currentPlayer.id ? "You won!" : `${opponent.displayName} won!`}
           </div>
         ) : gameState.roundComplete ? (
           <div className="text-lg font-medium text-primary">
-            Round complete! Next round starting soon...
+            {gameState.isTieBreaker ? "Tie breaker round!" : "Round complete! Next round starting soon..."}
           </div>
         ) : currentPlayer.move ? (
           <div className="text-lg text-muted-foreground">
-            Waiting for opponent's move...
+            Waiting for {opponent.displayName}'s move...
           </div>
         ) : (
           <div className="text-lg font-medium">

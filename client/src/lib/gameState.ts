@@ -6,17 +6,21 @@ export type GameState = {
   currentRound: number;
   player1: {
     id: string;
+    displayName: string;
     score: number;
     move?: Move;
   };
   player2: {
     id: string;
+    displayName: string;
     score: number;
     move?: Move;
   };
   winner?: string;
   roundComplete?: boolean;
   roundInProgress?: boolean;
+  isTieBreaker: boolean;
+  regularRoundsComplete: boolean;
   status: 'waiting' | 'active' | 'complete';
 };
 
@@ -42,6 +46,8 @@ export const subscribeToGame = (gameId: string, callback: (state: GameState) => 
       gameState.currentRound = gameState.currentRound || 1;
       gameState.player1.score = gameState.player1.score || 0;
       gameState.player2.score = gameState.player2.score || 0;
+      gameState.isTieBreaker = gameState.isTieBreaker || false;
+      gameState.regularRoundsComplete = gameState.regularRoundsComplete || false;
       gameState.status = gameState.status || 'active';
       callback(gameState);
     }
@@ -97,16 +103,26 @@ export const makeMove = async (gameId: string, playerId: string, move: Move) => 
     updates.roundInProgress = false;
     updates.currentRound = (game.currentRound || 1) + 1;
 
-    // Check for game winner
-    const playerNewScore = winner === 1 ? (game[playerKey].score || 0) + 1 : game[playerKey].score || 0;
-    const opponentNewScore = winner === 2 ? (game[opponentKey].score || 0) + 1 : game[opponentKey].score || 0;
+    // Check if regular rounds are complete
+    if (!game.regularRoundsComplete && game.currentRound === 3) {
+      updates.regularRoundsComplete = true;
+      const player1Score = winner === 1 ? game.player1.score + 1 : game.player1.score;
+      const player2Score = winner === 2 ? game.player2.score + 1 : game.player2.score;
 
-    if (playerNewScore >= 3) {
-      updates.winner = playerId;
-      updates.status = 'complete';
-    } else if (opponentNewScore >= 3) {
-      updates.winner = game[opponentKey].id;
-      updates.status = 'complete';
+      if (player1Score === player2Score) {
+        // Start tie-breaker rounds
+        updates.isTieBreaker = true;
+      } else {
+        // Determine winner
+        updates.winner = player1Score > player2Score ? game.player1.id : game.player2.id;
+        updates.status = 'complete';
+      }
+    } else if (game.isTieBreaker) {
+      // In tie-breaker, first win determines the game
+      if (winner !== 0) {
+        updates.winner = winner === 1 ? game.player1.id : game.player2.id;
+        updates.status = 'complete';
+      }
     }
 
     // Schedule round reset after delay

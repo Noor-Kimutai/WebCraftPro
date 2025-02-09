@@ -107,10 +107,16 @@ export const subscribeToMatches = (userId: string, onMatch: (gameId: string) => 
   });
 };
 
+// Update the findMatch function to include display names
 export const findMatch = async (userId: string) => {
   const waitingRef = ref(db, 'waiting');
   const snapshot = await get(waitingRef);
   const waitingPlayers = snapshot.val() || {};
+
+  // Get current user's data
+  const userRef = ref(db, `users/${userId}`);
+  const userSnapshot = await get(userRef);
+  const userData = userSnapshot.val();
 
   // Filter out our own user ID and find the earliest waiting player
   const availablePlayers = Object.entries(waitingPlayers)
@@ -120,22 +126,31 @@ export const findMatch = async (userId: string) => {
   if (availablePlayers.length > 0) {
     const [matchedPlayerId] = availablePlayers[0];
 
+    // Get matched player's data
+    const matchedPlayerRef = ref(db, `users/${matchedPlayerId}`);
+    const matchedPlayerSnapshot = await get(matchedPlayerRef);
+    const matchedPlayerData = matchedPlayerSnapshot.val();
+
     // Create a new game with complete initial state
     const gameId = nanoid();
     const gameData = {
       player1: { 
         id: userId, 
+        displayName: userData.displayName,
         score: 0,
         move: null
       },
       player2: { 
         id: matchedPlayerId, 
+        displayName: matchedPlayerData.displayName,
         score: 0,
         move: null
       },
       currentRound: 1,
       roundComplete: false,
       roundInProgress: false,
+      isTieBreaker: false,
+      regularRoundsComplete: false,
       status: 'active',
       createdAt: serverTimestamp()
     };
