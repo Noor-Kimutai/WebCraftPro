@@ -23,7 +23,6 @@ export default function Game() {
     }
 
     const unsubscribe = subscribeToGame(gameId, (state) => {
-      console.log("Received game state:", state);
       setGameState(state);
 
       // Reset selected move when round is complete
@@ -35,12 +34,15 @@ export default function Game() {
         });
       }
 
-      if (state.winner) {
+      // Handle game completion
+      if (state.status === 'complete') {
+        const isWinner = state.winner === auth.currentUser?.uid;
         toast({
-          title: `Game Over!`,
-          description: `${state.winner === auth.currentUser?.uid ? 'You win!' : 'Opponent wins!'}`,
+          title: "Game Over!",
+          description: isWinner ? "Congratulations! You won!" : "Better luck next time!",
+          duration: 5000,
         });
-        setTimeout(() => setLocation("/lobby"), 3000);
+        setTimeout(() => setLocation("/lobby"), 5000);
       }
     });
 
@@ -50,14 +52,19 @@ export default function Game() {
   const handleMove = async (move: Move) => {
     if (!gameState || !auth.currentUser || !gameId) return;
 
-    setSelectedMove(move);
     try {
+      setSelectedMove(move);
       await makeMove(gameId, auth.currentUser.uid, move);
+
+      toast({
+        title: "Move Made",
+        description: "Waiting for opponent...",
+      });
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to make move. Please try again.",
+        description: error.message || "Failed to make move",
       });
       setSelectedMove(null);
     }
@@ -71,13 +78,12 @@ export default function Game() {
     );
   }
 
-  // Determine if current user is player1 or player2
   const isPlayer1 = auth.currentUser?.uid === gameState.player1.id;
   const currentPlayer = isPlayer1 ? gameState.player1 : gameState.player2;
   const opponent = isPlayer1 ? gameState.player2 : gameState.player1;
 
-  // Check if it's a new round and moves need to be reset
-  const canMove = !currentPlayer.move && !gameState.roundInProgress;
+  // Determine if player can make a move
+  const canMove = !currentPlayer.move && !gameState.roundComplete && gameState.status === 'active';
 
   return (
     <div className="min-h-screen p-8 space-y-8">
@@ -88,6 +94,26 @@ export default function Game() {
         player1Name={`Player ${isPlayer1 ? '(You)' : ''}`}
         player2Name={`Opponent ${!isPlayer1 ? '(You)' : ''}`}
       />
+
+      <div className="text-center mb-4">
+        {gameState.status === 'complete' ? (
+          <div className="text-lg font-medium text-primary">
+            Game Over! Returning to lobby...
+          </div>
+        ) : gameState.roundComplete ? (
+          <div className="text-lg font-medium text-primary">
+            Round complete! Next round starting soon...
+          </div>
+        ) : currentPlayer.move ? (
+          <div className="text-lg text-muted-foreground">
+            Waiting for opponent's move...
+          </div>
+        ) : (
+          <div className="text-lg font-medium">
+            Your turn! Make your move
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-3 gap-4 max-w-3xl mx-auto">
         {(["rock", "paper", "scissors"] as Move[]).map((move) => (
@@ -100,12 +126,6 @@ export default function Game() {
           />
         ))}
       </div>
-
-      {gameState.roundComplete && (
-        <div className="text-center text-lg font-medium">
-          Round complete! Get ready for the next round...
-        </div>
-      )}
 
       <div className="text-center">
         <Button

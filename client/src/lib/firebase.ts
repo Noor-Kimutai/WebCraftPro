@@ -120,31 +120,44 @@ export const findMatch = async (userId: string) => {
   if (availablePlayers.length > 0) {
     const [matchedPlayerId] = availablePlayers[0];
 
-    // Create a new game
-    const gameRef = ref(db, `games/${nanoid()}`);
+    // Create a new game with complete initial state
+    const gameId = nanoid();
     const gameData = {
-      player1: { id: userId, score: 0 },
-      player2: { id: matchedPlayerId, score: 0 },
+      player1: { 
+        id: userId, 
+        score: 0,
+        move: null
+      },
+      player2: { 
+        id: matchedPlayerId, 
+        score: 0,
+        move: null
+      },
       currentRound: 1,
-      status: 'active'
+      roundComplete: false,
+      roundInProgress: false,
+      status: 'active',
+      createdAt: serverTimestamp()
     };
 
     // Update all references atomically
     const updates: any = {
-      [`games/${gameRef.key}`]: gameData,
-      [`matches/${userId}`]: { gameId: gameRef.key },
-      [`matches/${matchedPlayerId}`]: { gameId: gameRef.key },
+      [`games/${gameId}`]: gameData,
+      [`matches/${userId}`]: { gameId },
+      [`matches/${matchedPlayerId}`]: { gameId },
       [`waiting/${userId}`]: null,
       [`waiting/${matchedPlayerId}`]: null
     };
 
     await update(ref(db), updates);
+    return gameId;
   } else {
     // If no match found, add/update our waiting status
     const waitingPlayerRef = ref(db, `waiting/${userId}`);
     await set(waitingPlayerRef, {
       joinedAt: serverTimestamp()
     });
+    return null;
   }
 };
 
