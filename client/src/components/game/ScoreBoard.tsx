@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Check, X } from "lucide-react";
+import { Check, X, Circle } from "lucide-react";
 
 type ScoreBoardProps = {
   player1Score: number;
@@ -22,6 +22,11 @@ export function ScoreBoard({
   const maxScore = 3;
   const renderScore = (score: number) => {
     return Array.from({ length: maxScore }, (_, i) => {
+      if (currentRound <= i + 1) {
+        // Future rounds shown as circles
+        return <Circle key={i} className="w-5 h-5 text-muted-foreground inline-block" />;
+      }
+      // Past rounds shown as checkmarks or crosses
       if (i < score) {
         return <Check key={i} className="w-5 h-5 text-green-500 inline-block" />;
       }
